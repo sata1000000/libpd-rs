@@ -29,28 +29,21 @@ impl Atom {
     /// - [`StringConversion`](crate::error::PdError::StringConversion)
     pub fn to_t_atom(&self) -> Result<libpd_sys::t_atom, PdError> {
         match self {
-            Self::Float(value) => {
-                let mut t_atom = libpd_sys::t_atom {
-                    a_type: libpd_sys::t_atomtype_A_FLOAT,
-                    a_w: libpd_sys::word { w_float: 0.0 },
-                };
-                let p = &mut t_atom as *mut libpd_sys::t_atom;
-                unsafe {
-                    libpd_sys::libpd_set_double(p, *value);
-                }
+            Self::Float(value) => unsafe {
+                let mut t_atom: libpd_sys::t_atom = std::mem::zeroed();
+                libpd_sys::libpd_set_double(&mut t_atom, *value);
                 Ok(t_atom)
-            }
+            },
             Self::Symbol(s) => {
                 if unsafe { libpd_sys::libpd_this_instance().is_null() } {
                     return Err(InstanceError::NoCurrentInstanceSet.into());
                 }
                 let c_str = CString::new(s.as_str()).map_err(StringConversionError::from)?;
-                let sym_ptr = unsafe { libpd_sys::gensym(c_str.as_ptr()) };
-                let t_atom = libpd_sys::t_atom {
-                    a_type: libpd_sys::t_atomtype_A_SYMBOL,
-                    a_w: libpd_sys::word { w_symbol: sym_ptr },
-                };
-                Ok(t_atom)
+                unsafe {
+                    let mut t_atom: libpd_sys::t_atom = std::mem::zeroed();
+                    libpd_sys::libpd_set_symbol(&mut t_atom, c_str.as_ptr());
+                    Ok(t_atom)
+                }
             }
         }
     }
